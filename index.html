@@ -344,7 +344,10 @@ body {
 <!-- ══ LOG SCREEN ═══════════════════════════════════════════ -->
 <div id="screen-log" class="screen">
   <div class="log-header">
-    <h1>Log a purchase</h1>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
+      <button onclick="showScreen('home')" style="background:none;border:none;color:var(--muted);font-size:24px;cursor:pointer;padding:0;line-height:1;">‹</button>
+      <h1 style="margin:0;">Log a purchase</h1>
+    </div>
     <p>Think before you tap ✦</p>
   </div>
   <div class="log-body">
@@ -602,7 +605,7 @@ function renderHome() {
 
 // ── LOG ───────────────────────────────────────────────────────────────
 function showLog() {
-  // Reset form
+  // Reset form state
   q1 = null; q2 = null; selectedCat = null;
   document.querySelectorAll('.q-option').forEach(b => b.classList.remove('selected'));
   document.getElementById('q1-nudge').style.display = 'none';
@@ -612,7 +615,11 @@ function showLog() {
   document.getElementById('budget-impact').classList.remove('show');
   document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('selected'));
   document.getElementById('submit-btn').disabled = true;
-  showScreen('log');
+  renderCatGrid();
+  // Show log screen directly — avoid going through showScreen to prevent loop
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-log').classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
 }
 
 function selectQ(qnum, val, btn) {
@@ -707,10 +714,9 @@ function logEntry() {
   saveEntries(entries);
 
   showToast(`${cat.icon} $${amt.toFixed(2)} logged`);
-  showScreen('home');
   renderHome();
   renderHistory();
-  renderCatGrid();
+  showScreen('home');
 }
 
 // ── HISTORY ───────────────────────────────────────────────────────────
@@ -804,7 +810,6 @@ function resetMonth() {
 
 // ── NAVIGATION ────────────────────────────────────────────────────────
 function showScreen(name) {
-  if (name === 'log') { showLog(); return; }
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(`screen-${name}`).classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
