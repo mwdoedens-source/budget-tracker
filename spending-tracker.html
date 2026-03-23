@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Myrthe Budget">
+<meta name="theme-color" content="#0f1117">
+<title>Myrthe · Budget Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0f1117;
+  --surface:  #1a1d27;
+  --card:     #21253a;
+  --border:   #2e3350;
+  --accent:   #7c6af7;
+  --accent2:  #f7c46a;
+  --green:    #4ade80;
+  --red:      #f87171;
+  --amber:    #fbbf24;
+  --text:     #eeeef5;
+  --muted:    #7b809a;
+  --radius:   16px;
+  --font-display: 'DM Serif Display', Georgia, serif;
+  --font-body:    'DM Sans', system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* ── SCREENS ─────────────────────────────────────────── */
+.screen { display: none; flex-direction: column; min-height: 100vh; min-height: 100dvh; padding-bottom: env(safe-area-inset-bottom, 16px); }
+.screen.active { display: flex; }
+
+/* ── HEADER ──────────────────────────────────────────── */
+.header {
+  padding: 52px 20px 16px;
+  background: linear-gradient(180deg, #0f1117 60%, transparent);
+  position: sticky; top: 0; z-index: 10;
+}
+.header-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.greeting { font-family: var(--font-display); font-size: 28px; line-height: 1.1; }
+.greeting span { color: var(--accent2); font-style: italic; }
+.month-tag { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 500; color: var(--muted); white-space: nowrap; }
+
+/* ── SUMMARY RING ────────────────────────────────────── */
+.summary-section { padding: 16px 20px; }
+.ring-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  display: flex; align-items: center; gap: 24px;
+}
+.ring-wrap { position: relative; width: 100px; height: 100px; flex-shrink: 0; }
+.ring-wrap svg { width: 100px; height: 100px; transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: var(--card); stroke-width: 8; }
+.ring-fg { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset .6s cubic-bezier(.4,0,.2,1), stroke .4s; }
+.ring-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-pct { font-family: var(--font-display); font-size: 22px; line-height: 1; }
+.ring-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.ring-info { flex: 1; }
+.ring-info h2 { font-family: var(--font-display); font-size: 22px; margin-bottom: 4px; }
+.ring-info h2 span { color: var(--muted); font-size: 14px; font-family: var(--font-body); font-style: normal; }
+.ring-row { display: flex; justify-content: space-between; margin-top: 10px; }
+.ring-stat { text-align: center; }
+.ring-stat .val { font-weight: 600; font-size: 16px; }
+.ring-stat .lbl { font-size: 11px; color: var(--muted); }
+
+/* ── CATEGORIES ──────────────────────────────────────── */
+.section-title { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 0 20px; margin-bottom: 10px; }
+.cats-list { padding: 0 20px; display: flex; flex-direction: column; gap: 8px; }
+.cat-row {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  active: scale(.98);
+}
+.cat-row:active { background: var(--card); }
+.cat-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.cat-name { display: flex; align-items: center; gap: 8px; font-weight: 500; font-size: 14px; }
+.cat-icon { font-size: 18px; }
+.cat-amounts { text-align: right; font-size: 13px; }
+.cat-spent { font-weight: 600; }
+.cat-budget { color: var(--muted); font-size: 11px; }
+.progress-bar { height: 4px; background: var(--card); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 2px; transition: width .4s cubic-bezier(.4,0,.2,1); }
+
+/* ── FAB ─────────────────────────────────────────────── */
+.fab {
+  position: fixed; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); right: 20px;
+  width: 60px; height: 60px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  border: none; color: white; font-size: 28px; cursor: pointer;
+  box-shadow: 0 8px 24px rgba(124,106,247,.4);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .15s, box-shadow .15s;
+  z-index: 50;
+}
+.fab:active { transform: scale(.93); box-shadow: 0 4px 12px rgba(124,106,247,.3); }
+
+/* ── BOTTOM NAV ──────────────────────────────────────── */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(15,17,23,.9); backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border);
+  display: flex; padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
+}
+.nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; border: none; background: none; color: var(--muted); font-size: 10px; font-family: var(--font-body); cursor: pointer; padding: 6px 0; transition: color .15s; }
+.nav-btn.active { color: var(--accent); }
+.nav-btn svg { width: 22px; height: 22px; }
+
+/* ── LOG SCREEN ──────────────────────────────────────── */
+.log-header { padding: 52px 20px 20px; }
+.log-header h1 { font-family: var(--font-display); font-size: 26px; margin-bottom: 4px; }
+.log-header p { color: var(--muted); font-size: 14px; }
+.log-body { padding: 0 20px; flex: 1; overflow-y: auto; padding-bottom: 100px; }
+
+.question-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 12px;
+}
+.q-num { font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: 6px; }
+.q-text { font-size: 16px; font-weight: 500; margin-bottom: 14px; line-height: 1.4; }
+.q-options { display: flex; gap: 8px; }
+.q-option {
+  flex: 1; padding: 10px 8px; border-radius: 10px;
+  border: 1.5px solid var(--border); background: var(--card);
+  color: var(--text); font-size: 13px; font-family: var(--font-body);
+  font-weight: 500; cursor: pointer; text-align: center;
+  transition: all .15s;
+}
+.q-option.selected { border-color: var(--accent); background: rgba(124,106,247,.15); color: var(--accent); }
+.q-option.yes { border-color: transparent; }
+.q-option.yes.selected { border-color: var(--green); background: rgba(74,222,128,.12); color: var(--green); }
+.q-option.no.selected { border-color: var(--red); background: rgba(248,113,113,.12); color: var(--red); }
+
+.form-group { margin-bottom: 16px; }
+.form-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; display: block; }
+.form-input {
+  width: 100%; padding: 14px 16px; border-radius: 12px;
+  background: var(--surface); border: 1.5px solid var(--border);
+  color: var(--text); font-size: 16px; font-family: var(--font-body);
+  outline: none; transition: border-color .15s;
+  -webkit-appearance: none;
+}
+.form-input:focus { border-color: var(--accent); }
+.amount-wrap { position: relative; }
+.amount-wrap .currency { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 18px; }
+.amount-wrap .form-input { padding-left: 32px; font-size: 22px; font-weight: 600; }
+
+.cat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cat-chip {
+  padding: 12px; border-radius: 12px; border: 1.5px solid var(--border);
+  background: var(--card); color: var(--text); font-size: 13px;
+  font-family: var(--font-body); cursor: pointer; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  transition: all .15s;
+}
+.cat-chip.selected { border-color: var(--accent); background: rgba(124,106,247,.15); }
+.cat-chip .chip-icon { font-size: 22px; }
+.cat-chip .chip-remaining { font-size: 10px; color: var(--muted); margin-top: 2px; }
+.cat-chip.selected .chip-remaining { color: var(--accent); }
+
+.budget-impact {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-top: 8px;
+  font-size: 13px;
+  display: none;
+}
+.budget-impact.show { display: block; }
+.impact-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.impact-label { color: var(--muted); }
+.impact-value { font-weight: 600; }
+.impact-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 8px; }
+.impact-fill { height: 100%; border-radius: 3px; transition: width .3s; }
+.impact-warning { font-size: 12px; color: var(--amber); margin-top: 8px; display: none; }
+
+.submit-btn {
+  width: 100%; padding: 16px; border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  border: none; color: white; font-size: 16px; font-weight: 600;
+  font-family: var(--font-body); cursor: pointer; margin-top: 16px;
+  box-shadow: 0 4px 20px rgba(124,106,247,.3);
+  transition: transform .15s, opacity .15s;
+}
+.submit-btn:active { transform: scale(.98); opacity: .9; }
+.submit-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* ── HISTORY SCREEN ──────────────────────────────────── */
+.history-header { padding: 52px 20px 16px; }
+.history-header h1 { font-family: var(--font-display); font-size: 26px; }
+.history-list { padding: 0 20px; flex: 1; overflow-y: auto; padding-bottom: 100px; }
+.entry-group-date { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 16px 0 8px; }
+.entry-item {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
+}
+.entry-icon { font-size: 22px; width: 40px; height: 40px; background: var(--card); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.entry-info { flex: 1; }
+.entry-cat { font-weight: 500; font-size: 14px; }
+.entry-note { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.entry-amt { font-weight: 700; font-size: 16px; color: var(--red); }
+.entry-delete { background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; padding: 4px; }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+.empty-state .big { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; line-height: 1.5; }
+
+/* ── SETTINGS SCREEN ─────────────────────────────────── */
+.settings-header { padding: 52px 20px 16px; }
+.settings-header h1 { font-family: var(--font-display); font-size: 26px; }
+.settings-body { padding: 0 20px; flex: 1; overflow-y: auto; padding-bottom: 100px; }
+.settings-section { margin-bottom: 24px; }
+.setting-row {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.setting-label { font-weight: 500; font-size: 14px; }
+.setting-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.setting-input {
+  background: var(--card); border: 1.5px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: 15px; font-family: var(--font-body);
+  padding: 8px 12px; width: 100px; text-align: right; outline: none;
+}
+.setting-input:focus { border-color: var(--accent); }
+.save-settings-btn {
+  width: 100%; padding: 14px; border-radius: 12px;
+  background: var(--accent); border: none; color: white;
+  font-size: 15px; font-weight: 600; font-family: var(--font-body);
+  cursor: pointer; margin-top: 8px;
+}
+.reset-btn {
+  width: 100%; padding: 14px; border-radius: 12px;
+  background: transparent; border: 1.5px solid var(--red); color: var(--red);
+  font-size: 14px; font-weight: 500; font-family: var(--font-body);
+  cursor: pointer; margin-top: 8px;
+}
+
+/* ── TOAST ───────────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 100px; padding: 12px 20px; font-size: 14px; font-weight: 500;
+  white-space: nowrap; opacity: 0; transition: all .3s;
+  z-index: 100; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── INSTALL BANNER ──────────────────────────────────── */
+.install-banner {
+  margin: 0 20px 12px;
+  background: rgba(124,106,247,.1);
+  border: 1px solid rgba(124,106,247,.3);
+  border-radius: 12px;
+  padding: 14px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  display: none;
+}
+.install-banner strong { color: var(--accent); display: block; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<!-- ══ HOME SCREEN ══════════════════════════════════════════ -->
+<div id="screen-home" class="screen active">
+  <div class="header">
+    <div class="header-top">
+      <div class="greeting">Good <span id="time-greeting">evening</span>,<br>Myrthe.</div>
+      <div class="month-tag" id="month-tag">July 2026</div>
+    </div>
+  </div>
+
+  <div class="install-banner" id="install-banner">
+    <strong>📲 Add to Home Screen</strong>
+    Tap the share button → "Add to Home Screen" to use this like an app with a daily reminder alarm.
+  </div>
+
+  <div class="summary-section">
+    <div class="ring-card">
+      <div class="ring-wrap">
+        <svg viewBox="0 0 100 100">
+          <circle class="ring-bg" cx="50" cy="50" r="40"/>
+          <circle class="ring-fg" id="ring-fg" cx="50" cy="50" r="40" stroke-dasharray="251.2" stroke-dashoffset="251.2"/>
+        </svg>
+        <div class="ring-label">
+          <div class="ring-pct" id="ring-pct">0%</div>
+          <div class="ring-sub">used</div>
+        </div>
+      </div>
+      <div class="ring-info">
+        <h2>$<span id="total-spent">0</span> <span>/ $<span id="total-budget">0</span></span></h2>
+        <div class="ring-row">
+          <div class="ring-stat">
+            <div class="val" id="stat-remaining" style="color:var(--green)">$0</div>
+            <div class="lbl">remaining</div>
+          </div>
+          <div class="ring-stat">
+            <div class="val" id="stat-days">0</div>
+            <div class="lbl">days left</div>
+          </div>
+          <div class="ring-stat">
+            <div class="val" id="stat-daily">$0</div>
+            <div class="lbl">daily left</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:10px;">
+    <div class="section-title">Categories</div>
+    <div class="cats-list" id="cats-list"></div>
+  </div>
+
+  <div style="height:80px;"></div>
+</div>
+
+<!-- ══ LOG SCREEN ═══════════════════════════════════════════ -->
+<div id="screen-log" class="screen">
+  <div class="log-header">
+    <h1>Log a purchase</h1>
+    <p>Think before you tap ✦</p>
+  </div>
+  <div class="log-body">
+
+    <!-- Q1 -->
+    <div class="question-card">
+      <div class="q-num">Question 1 of 3</div>
+      <div class="q-text">Is this purchase truly necessary?</div>
+      <div class="q-options">
+        <button class="q-option yes" onclick="selectQ(1,'yes',this)">Yes, it is</button>
+        <button class="q-option no" onclick="selectQ(1,'no',this)">Not really</button>
+      </div>
+      <div id="q1-nudge" style="font-size:13px;color:var(--amber);margin-top:10px;display:none;">
+        💛 Worth pausing — do you want to log it anyway?
+      </div>
+    </div>
+
+    <!-- Q2 -->
+    <div class="question-card">
+      <div class="q-num">Question 2 of 3</div>
+      <div class="q-text">Do you need this right now, or can it wait?</div>
+      <div class="q-options">
+        <button class="q-option yes" onclick="selectQ(2,'now',this)">Need it now</button>
+        <button class="q-option no" onclick="selectQ(2,'wait',this)">Could wait</button>
+      </div>
+      <div id="q2-nudge" style="font-size:13px;color:var(--amber);margin-top:10px;display:none;">
+        ⏳ Consider waiting until next month's budget resets.
+      </div>
+    </div>
+
+    <!-- Amount + Category -->
+    <div class="form-group">
+      <label class="form-label">Amount</label>
+      <div class="amount-wrap">
+        <span class="currency">$</span>
+        <input type="number" inputmode="decimal" class="form-input" id="amount-input" placeholder="0.00" step="0.01" oninput="onAmountChange()">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Question 3 · Category — how much does this eat?</label>
+      <div class="cat-grid" id="cat-grid"></div>
+      <div class="budget-impact" id="budget-impact">
+        <div class="impact-row">
+          <span class="impact-label">Category budget</span>
+          <span class="impact-value" id="imp-budget">—</span>
+        </div>
+        <div class="impact-row">
+          <span class="impact-label">Already spent</span>
+          <span class="impact-value" id="imp-spent">—</span>
+        </div>
+        <div class="impact-row">
+          <span class="impact-label">This purchase</span>
+          <span class="impact-value" id="imp-this" style="color:var(--red)">—</span>
+        </div>
+        <div class="impact-row" style="padding-top:8px;border-top:1px solid var(--border);margin-top:4px;">
+          <span class="impact-label">Remaining after</span>
+          <span class="impact-value" id="imp-after">—</span>
+        </div>
+        <div class="impact-bar">
+          <div class="impact-fill" id="imp-fill" style="width:0%;background:var(--green)"></div>
+        </div>
+        <div class="impact-warning" id="imp-warning">⚠️ This puts you over budget for this category.</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Note (optional)</label>
+      <input type="text" class="form-input" id="note-input" placeholder="What was it for?">
+    </div>
+
+    <button class="submit-btn" id="submit-btn" onclick="logEntry()" disabled>Log purchase →</button>
+    <div style="height:20px;"></div>
+  </div>
+</div>
+
+<!-- ══ HISTORY SCREEN ════════════════════════════════════════ -->
+<div id="screen-history" class="screen">
+  <div class="history-header">
+    <h1>Spending history</h1>
+  </div>
+  <div class="history-list" id="history-list"></div>
+</div>
+
+<!-- ══ SETTINGS SCREEN ══════════════════════════════════════ -->
+<div id="screen-settings" class="screen">
+  <div class="settings-header">
+    <h1>Budget settings</h1>
+  </div>
+  <div class="settings-body">
+    <div class="settings-section">
+      <div class="section-title">Monthly budgets</div>
+      <div id="settings-cats"></div>
+      <button class="save-settings-btn" onclick="saveSettings()">Save budgets</button>
+    </div>
+    <div class="settings-section">
+      <div class="section-title">Data</div>
+      <button class="reset-btn" onclick="resetMonth()">Reset this month's spending</button>
+    </div>
+    <div style="height:20px;font-size:12px;color:var(--muted);text-align:center;padding-top:12px;">
+      Data saved locally on this device only.
+    </div>
+  </div>
+</div>
+
+<!-- ══ FAB ══════════════════════════════════════════════════ -->
+<button class="fab" onclick="showLog()" id="fab">+</button>
+
+<!-- ══ BOTTOM NAV ════════════════════════════════════════════ -->
+<div class="bottom-nav">
+  <button class="nav-btn active" id="nav-home" onclick="showScreen('home')">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    Home
+  </button>
+  <button class="nav-btn" id="nav-history" onclick="showScreen('history')">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    History
+  </button>
+  <button class="nav-btn" id="nav-settings" onclick="showScreen('settings')">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+    Settings
+  </button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────
+const DEFAULT_CATS = [
+  { id:'dining',   name:'Dining out',       icon:'🍽️',  budget:210 },
+  { id:'travel',   name:'Travel fund',      icon:'✈️',  budget:184 },
+  { id:'kids',     name:'Kids activities',  icon:'🧸',  budget:79  },
+  { id:'dates',    name:'Date nights',      icon:'💛',  budget:52  },
+  { id:'clothing', name:'Clothing',         icon:'👗',  budget:112 },
+  { id:'personal', name:'Personal care',    icon:'✨',  budget:50  },
+  { id:'grocery',  name:'Groceries',        icon:'🛒',  budget:0   },
+  { id:'other',    name:'Other',            icon:'📦',  budget:0   },
+];
+
+function getKey(suffix) {
+  const now = new Date();
+  return `myrthe_${now.getFullYear()}_${now.getMonth()}_${suffix}`;
+}
+
+function loadCats() {
+  const saved = localStorage.getItem('myrthe_cats');
+  return saved ? JSON.parse(saved) : DEFAULT_CATS.map(c => ({...c}));
+}
+
+function saveCats(cats) {
+  localStorage.setItem('myrthe_cats', JSON.stringify(cats));
+}
+
+function loadEntries() {
+  const saved = localStorage.getItem(getKey('entries'));
+  return saved ? JSON.parse(saved) : [];
+}
+
+function saveEntries(entries) {
+  localStorage.setItem(getKey('entries'), JSON.stringify(entries));
+}
+
+function getSpentByCat(entries) {
+  const spent = {};
+  entries.forEach(e => {
+    spent[e.catId] = (spent[e.catId] || 0) + e.amount;
+  });
+  return spent;
+}
+
+// ── STATE ─────────────────────────────────────────────────────────────
+let cats = loadCats();
+let entries = loadEntries();
+let q1 = null, q2 = null, selectedCat = null;
+
+// ── INIT ──────────────────────────────────────────────────────────────
+function init() {
+  updateGreeting();
+  updateMonthTag();
+  renderHome();
+  renderCatGrid();
+  renderHistory();
+  renderSettings();
+  checkInstallBanner();
+}
+
+function updateGreeting() {
+  const h = new Date().getHours();
+  const g = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+  document.getElementById('time-greeting').textContent = g;
+}
+
+function updateMonthTag() {
+  const now = new Date();
+  document.getElementById('month-tag').textContent =
+    now.toLocaleString('default', { month:'long', year:'numeric' });
+}
+
+function checkInstallBanner() {
+  const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+  if (!isStandalone) document.getElementById('install-banner').style.display = 'block';
+}
+
+function daysLeftInMonth() {
+  const now = new Date();
+  const last = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  return last - now.getDate() + 1;
+}
+
+// ── HOME ──────────────────────────────────────────────────────────────
+function renderHome() {
+  const spent = getSpentByCat(entries);
+  const totalBudget = cats.reduce((s,c) => s + c.budget, 0);
+  const totalSpent  = Object.values(spent).reduce((s,v) => s+v, 0);
+  const remaining   = totalBudget - totalSpent;
+  const pct         = totalBudget > 0 ? Math.min(totalSpent/totalBudget, 1) : 0;
+  const days        = daysLeftInMonth();
+  const dailyLeft   = days > 0 ? remaining/days : 0;
+
+  // Ring
+  const circumference = 251.2;
+  const offset = circumference - pct * circumference;
+  const ring = document.getElementById('ring-fg');
+  ring.style.strokeDashoffset = offset;
+  ring.style.stroke = pct > .9 ? 'var(--red)' : pct > .7 ? 'var(--amber)' : 'var(--accent)';
+  document.getElementById('ring-pct').textContent = Math.round(pct*100)+'%';
+  document.getElementById('total-spent').textContent = totalSpent.toFixed(0);
+  document.getElementById('total-budget').textContent = totalBudget.toFixed(0);
+  document.getElementById('stat-remaining').textContent = '$'+Math.max(remaining,0).toFixed(0);
+  document.getElementById('stat-remaining').style.color = remaining < 0 ? 'var(--red)' : 'var(--green)';
+  document.getElementById('stat-days').textContent = days;
+  document.getElementById('stat-daily').textContent = '$'+Math.max(dailyLeft,0).toFixed(0);
+
+  // Cat list
+  const list = document.getElementById('cats-list');
+  list.innerHTML = cats.map(c => {
+    const s = spent[c.id] || 0;
+    const pctC = c.budget > 0 ? Math.min(s/c.budget,1) : (s > 0 ? 1 : 0);
+    const color = pctC > .9 ? 'var(--red)' : pctC > .7 ? 'var(--amber)' : 'var(--accent)';
+    const rem = c.budget - s;
+    return `<div class="cat-row" onclick="filterHistory('${c.id}')">
+      <div class="cat-top">
+        <div class="cat-name"><span class="cat-icon">${c.icon}</span>${c.name}</div>
+        <div class="cat-amounts">
+          <div class="cat-spent" style="color:${s>0?'var(--text)':'var(--muted)'}">$${s.toFixed(0)}</div>
+          <div class="cat-budget">${c.budget > 0 ? `$${rem.toFixed(0)} left of $${c.budget}` : 'No budget set'}</div>
+        </div>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" style="width:${pctC*100}%;background:${color};"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── LOG ───────────────────────────────────────────────────────────────
+function showLog() {
+  // Reset form
+  q1 = null; q2 = null; selectedCat = null;
+  document.querySelectorAll('.q-option').forEach(b => b.classList.remove('selected'));
+  document.getElementById('q1-nudge').style.display = 'none';
+  document.getElementById('q2-nudge').style.display = 'none';
+  document.getElementById('amount-input').value = '';
+  document.getElementById('note-input').value = '';
+  document.getElementById('budget-impact').classList.remove('show');
+  document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('selected'));
+  document.getElementById('submit-btn').disabled = true;
+  showScreen('log');
+}
+
+function selectQ(qnum, val, btn) {
+  const parent = btn.closest('.question-card');
+  parent.querySelectorAll('.q-option').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  if (qnum === 1) {
+    q1 = val;
+    document.getElementById('q1-nudge').style.display = val === 'no' ? 'block' : 'none';
+  } else {
+    q2 = val;
+    document.getElementById('q2-nudge').style.display = val === 'wait' ? 'block' : 'none';
+  }
+  checkSubmit();
+}
+
+function renderCatGrid() {
+  const spent = getSpentByCat(loadEntries());
+  const grid = document.getElementById('cat-grid');
+  grid.innerHTML = cats.map(c => {
+    const s = spent[c.id] || 0;
+    const rem = c.budget > 0 ? c.budget - s : null;
+    return `<button class="cat-chip" onclick="selectCat('${c.id}',this)">
+      <span class="chip-icon">${c.icon}</span>
+      <span>${c.name}</span>
+      ${rem !== null ? `<span class="chip-remaining">$${rem.toFixed(0)} left</span>` : ''}
+    </button>`;
+  }).join('');
+}
+
+function selectCat(catId, btn) {
+  document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedCat = catId;
+  updateImpact();
+  checkSubmit();
+}
+
+function onAmountChange() {
+  updateImpact();
+  checkSubmit();
+}
+
+function updateImpact() {
+  if (!selectedCat) return;
+  const amt = parseFloat(document.getElementById('amount-input').value) || 0;
+  const cat = cats.find(c => c.id === selectedCat);
+  if (!cat) return;
+  const spent = getSpentByCat(entries);
+  const s = spent[selectedCat] || 0;
+  const after = s + amt;
+  const rem = cat.budget - after;
+  const pct = cat.budget > 0 ? Math.min(after/cat.budget, 1) : (after > 0 ? 1 : 0);
+  const color = pct > .9 ? 'var(--red)' : pct > .7 ? 'var(--amber)' : 'var(--green)';
+
+  document.getElementById('imp-budget').textContent = cat.budget > 0 ? '$'+cat.budget : 'No limit';
+  document.getElementById('imp-spent').textContent = '$'+s.toFixed(2);
+  document.getElementById('imp-this').textContent = amt > 0 ? '-$'+amt.toFixed(2) : '-$0.00';
+  document.getElementById('imp-after').textContent = '$'+Math.max(rem,0).toFixed(2)+(rem<0?' (over)':'');
+  document.getElementById('imp-after').style.color = rem < 0 ? 'var(--red)' : 'var(--green)';
+  document.getElementById('imp-fill').style.width = (pct*100)+'%';
+  document.getElementById('imp-fill').style.background = color;
+  const warn = document.getElementById('imp-warning');
+  warn.style.display = (rem < 0 && amt > 0) ? 'block' : 'none';
+  if (amt > 0) document.getElementById('budget-impact').classList.add('show');
+}
+
+function checkSubmit() {
+  const amt = parseFloat(document.getElementById('amount-input').value) || 0;
+  document.getElementById('submit-btn').disabled = !(amt > 0 && selectedCat !== null);
+}
+
+function logEntry() {
+  const amt = parseFloat(document.getElementById('amount-input').value);
+  const note = document.getElementById('note-input').value.trim();
+  const cat = cats.find(c => c.id === selectedCat);
+  if (!amt || !cat) return;
+
+  const entry = {
+    id: Date.now(),
+    catId: selectedCat,
+    catName: cat.name,
+    catIcon: cat.icon,
+    amount: amt,
+    note: note,
+    date: new Date().toISOString(),
+    q1: q1,
+    q2: q2,
+  };
+
+  entries.unshift(entry);
+  saveEntries(entries);
+
+  showToast(`${cat.icon} $${amt.toFixed(2)} logged`);
+  showScreen('home');
+  renderHome();
+  renderHistory();
+  renderCatGrid();
+}
+
+// ── HISTORY ───────────────────────────────────────────────────────────
+let historyFilter = null;
+
+function filterHistory(catId) {
+  historyFilter = catId;
+  showScreen('history');
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  let filtered = historyFilter ? entries.filter(e => e.catId === historyFilter) : entries;
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="big">📭</div><p>No entries yet.<br>Tap + to log your first purchase.</p></div>`;
+    return;
+  }
+
+  // Group by date
+  const groups = {};
+  filtered.forEach(e => {
+    const d = new Date(e.date);
+    const key = d.toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' });
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(e);
+  });
+
+  list.innerHTML = Object.entries(groups).map(([date, es]) => `
+    <div class="entry-group-date">${date}</div>
+    ${es.map(e => `
+      <div class="entry-item">
+        <div class="entry-icon">${e.catIcon}</div>
+        <div class="entry-info">
+          <div class="entry-cat">${e.catName}</div>
+          ${e.note ? `<div class="entry-note">${e.note}</div>` : ''}
+          ${(e.q1==='no'||e.q2==='wait') ? `<div class="entry-note" style="color:var(--amber)">⚠️ Flagged as ${e.q1==='no'?'not necessary':'could wait'}</div>` : ''}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div class="entry-amt">$${e.amount.toFixed(2)}</div>
+          <button class="entry-delete" onclick="deleteEntry(${e.id})">×</button>
+        </div>
+      </div>
+    `).join('')}
+  `).join('');
+}
+
+function deleteEntry(id) {
+  entries = entries.filter(e => e.id !== id);
+  saveEntries(entries);
+  renderHome();
+  renderHistory();
+  renderCatGrid();
+  showToast('Entry removed');
+}
+
+// ── SETTINGS ──────────────────────────────────────────────────────────
+function renderSettings() {
+  const container = document.getElementById('settings-cats');
+  container.innerHTML = cats.map(c => `
+    <div class="setting-row">
+      <div>
+        <div class="setting-label">${c.icon} ${c.name}</div>
+        <div class="setting-sub">Monthly budget</div>
+      </div>
+      <input type="number" inputmode="decimal" class="setting-input" id="set-${c.id}" value="${c.budget}" placeholder="0">
+    </div>
+  `).join('');
+}
+
+function saveSettings() {
+  cats.forEach(c => {
+    const val = parseFloat(document.getElementById(`set-${c.id}`)?.value) || 0;
+    c.budget = val;
+  });
+  saveCats(cats);
+  renderHome();
+  renderCatGrid();
+  showToast('Budgets saved ✓');
+}
+
+function resetMonth() {
+  if (!confirm('Reset all spending for this month? This cannot be undone.')) return;
+  entries = [];
+  saveEntries(entries);
+  renderHome();
+  renderHistory();
+  renderCatGrid();
+  showToast('Month reset');
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────
+function showScreen(name) {
+  if (name === 'log') { showLog(); return; }
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(`screen-${name}`).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`nav-${name}`)?.classList.add('active');
+  if (name === 'history') { historyFilter = null; renderHistory(); }
+  if (name === 'home') renderHome();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+init();
+</script>
+</body>
+</html>
